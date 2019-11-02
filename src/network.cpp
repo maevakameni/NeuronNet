@@ -75,6 +75,45 @@ std::vector<double> Network::recoveries() const {
         vals.push_back(neurons[nn].recovery());
     return vals;
 }
+std::set<size_t> Network::step(const std::vector<double>& thalamic_input){
+	std::set<size_t> firing_neurons;
+	
+	for (size_t i(0); i< neurons.size(); ++i){
+		if(neurons[i].firing()){
+			firing_neurons.insert(i);
+			neurons[i].reset();
+		}
+	}
+	
+	for (size_t i(0); i< neurons.size(); ++i){
+		double thalamic(thalamic_input[i]);
+		double total_result(0);
+		
+		std::vector<std::pair<size_t, double> > neighboring_neurons(neighbors(i));
+		for (auto& j: neighboring_neurons){
+			if(firing_neurons.count(j.first)==1) {
+				
+				if(neurons[j.first].is_inhibitory()){
+					total_result += j.second;
+				}
+				else {
+					total_result +=0.5*j.second;
+				}
+			}
+		}
+		if (neurons[i].is_inhibitory()) {
+			thalamic*= 0.4;
+		}
+	
+			total_result += thalamic;
+		
+		neurons[i].input(total_result);
+		neurons[i].step();
+	}
+	return firing_neurons;
+}
+	
+
 
 void Network::print_params(std::ostream *_out) {
     (*_out) << "Type\ta\tb\tc\td\tInhibitory\tdegree\tvalence" << std::endl;
@@ -128,3 +167,30 @@ void Network::print_traj(const int time, const std::map<std::string, size_t> &_n
             }
     (*_out) << std::endl;
 }
+
+std::pair<size_t, double> Network::degree(const size_t& degre) const{
+	double sum_connection;
+	std::vector<std::pair<size_t, double>> nb_connection;
+	std::pair<size_t, double> degree_;
+
+	nb_connection = neighbors(degre);
+	for(auto i : nb_connection){
+		sum_connection += i.second;
+		}
+	degree_=std::make_pair(nb_connection.size(),sum_connection);
+	return degree_;
+	}
+	
+std::vector<std::pair <size_t,double>> Network::neighbors(const size_t& neighbors_) const{
+	std::vector<std::pair<size_t, double>> _neighbors;
+	std::pair<size_t,double> Pair(neighbors_,0);
+	auto i =links.lower_bound(Pair);
+	while(i-> first.first == neighbors_ and i-> first.second < neurons.size()){
+		_neighbors.push_back(std::make_pair(i->first.second, i->second));
+		++i;
+		}
+	
+	
+	return _neighbors;
+}
+	
